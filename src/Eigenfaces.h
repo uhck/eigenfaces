@@ -198,8 +198,8 @@ void Eigenfaces::train(vector<Mat>& images)
     cout << "Subtracting mean face from images\n\n"; //debug
     Mat A(eigenvectors[0].size(), eigenvectors[0].type());
     meanface.reshape(0, meanface.rows); //change back to original size
-    //imshow("After meanface", meanface); //display
-    //waitKey(0);
+    imshow("After meanface", meanface); //display
+    waitKey(0);
 
     //Features = image vectors - mean face
     //A = [all features] (each image is a col)
