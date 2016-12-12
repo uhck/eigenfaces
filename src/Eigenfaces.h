@@ -157,7 +157,7 @@ void Eigenfaces::normalizer(vector<Mat>& images)
         switch(regImg.channels())
         {
             case 1:
-                images[i].convertTo(images[i], CV_64FC1, 1./255); //convert back to original scale
+                images[i].convertTo(images[i], CV_64FC1, 1./255);
                 break;
             case 3:
                 images[i].convertTo(images[i], CV_64FC1, 1./255);
@@ -172,34 +172,33 @@ void Eigenfaces::normalizer(vector<Mat>& images)
 void Eigenfaces::train(vector<Mat>& images)
 {
 
-    cout << "Training data set\n\n"; //debug
+    cout << "Training data set\n\n"; 
     Mat image(images[0].size(), images[0].type());
-    meanface = Mat(images[0].rows, images[0].cols, images[0].type());
-    cout << "Loading image vectors\n\n"; //debug
+    meanface = Mat(images[0].rows*images[0].cols, 1, images[0].type());
+    cout << "Loading image vectors\n\n"; 
 
     for (int i = 0; i < images.size(); i++)
     {
         //Reduce image matrices to vectors (N^2 x 1)
         image = images[i];
-        image.reshape(0, images[i].rows*images[i].cols);
+        image = image.reshape(0, images[i].rows*images[i].cols);
         eigenvectors.push_back(image);
         //Add faces to meanface
         meanface += eigenvectors[i];
-        //imshow("Before meanface", images[i]); //display
-        //waitKey(0);
     }
 
-    cout << "Calculating mean face\n\n"; //debug
-    cout << "Image vector: " << eigenvectors[0].rows << " " << eigenvectors[0].cols << endl << endl; //debug
-    
-    //Calc meanface
+    cout << "Calculating mean face\n\n"; 
     meanface = meanface / eigenvectors.size();
-    
-    cout << "Subtracting mean face from images\n\n"; //debug
-    Mat A(eigenvectors[0].size(), eigenvectors[0].type());
-    meanface.reshape(0, meanface.rows); //change back to original size
-    imshow("After meanface", meanface); //display
+    /*
+     * DISPLAY MEANFACE
+    meanface = meanface.reshape(0, images[0].rows);
+    imshow("Meanface", meanface);
+    meanface = meanface.reshape(0, images[0].rows*images[0].cols);
     waitKey(0);
+    */
+
+    cout << "Subtracting mean face from images\n\n"; 
+    Mat A(eigenvectors[0].size(), eigenvectors[0].type());
 
     //Features = image vectors - mean face
     //A = [all features] (each image is a col)
@@ -207,44 +206,40 @@ void Eigenfaces::train(vector<Mat>& images)
     {
         eigenvectors[i] -= meanface;
         hconcat(A, eigenvectors[i], A);
+        /*
+         * DISPLAY FEATURES-MEANFACE
+        eigenvectors[i] = eigenvectors[i].reshape(0, images[i].rows); //original size
+        imshow("Eigenvectors - meanface", eigenvectors[i]); //display
+        waitKey(0);
+        eigenvectors[i] = eigenvectors[i].reshape(0, images[i].rows*images[i].cols);
+        */
     }
 
-    cout << "A: " << A.rows << " " << A.cols << endl << endl;
-    cout << "Calculating covariance matrix\n\n"; //debug
+    cout << "Calculating covariance matrix\n\n"; 
     
     //Calculate A^T*A
     Mat C = A.t()*A;
     Mat v, eval;
 
-    cout << "Calculating eigenvectors v\n\n"; //debug
+    cout << "Calculating eigenvectors v\n\n"; 
     //Calculate eigenvectors v of T*A
     eigen(C, eval, v);
-
-    cout << "Calculating M largest eigenvectors u\n\n"; //debug
-    //Calculate M largest eigenvectors u
-    Mat u = A*v;
     
-    //Clear eigenvectors vector
+    cout << "Calculating M largest eigenvectors u\n\n";
     eigenvectors.clear();
-    
-    cout << "Load eigenvectors into vector & convert to unit vectors\n\n";
-    double unit;
-    //Transfer u vectors into eigenvectors
-    //Convert u vectors into unit vectors
-    for (int i = 0; i < u.cols; i++)
+    for (int i = 0; i < v.cols; i++)
     {
-        //Calculates magnitude of vector
-        unit = norm(u.col(i));
         //Divide every element by unit to get normalize to unit vector
-        eigenvectors.push_back(u.col(i)/unit);
+        image = A*v.col(i);
+        eigenvectors.push_back(image);
+        /*
+         * DISPLAY EIGENVECTORS
+        eigenvectors[i] = eigenvectors[i].reshape(0, images[0].rows); //original size
+        imshow("Eigenface", eigenvectors[i]); //display image
+        waitKey(0);
+        */
     }
-
-    //Resize eigenvectors back to original image dimensions and output first one ; debug
-    eigenvectors[0].reshape(0, images[0].rows);
-    cout << "Eigenvector size: " << eigenvectors[0].rows << " " << eigenvectors[0].cols << endl << endl; //debug
-    imshow("Eigenface", eigenvectors[0]);
-
-    waitKey(0);
+    cout << eigenvectors[0].at<double>(0,0) << endl;
 }
 
 void Eigenfaces::nukem()
