@@ -154,6 +154,7 @@ void Eigenfaces::normalizer(vector<Mat>& images)
     {
         Mat regImg = images[i];
 
+        //SHOULD NORMALIZE BY UNIT VECTOR
         switch(regImg.channels())
         {
             case 1:
@@ -171,41 +172,45 @@ void Eigenfaces::normalizer(vector<Mat>& images)
 
 void Eigenfaces::train(vector<Mat>& images)
 {
+    int IMGAREA = images[0].rows*images[0].cols;
+    int HEIGHT = images[0].rows;
+    int WIDTH = images[0].cols;
+    int IMGTYPE = images[0].type();
+    Size IMGSIZE = images[0].size();
+    Size VECSIZE = Size(1, IMGAREA);
 
     cout << "Training data set\n\n"; 
-    Mat image(images[0].size(), images[0].type());
-    meanface = Mat(images[0].rows*images[0].cols, 1, images[0].type());
+    cout << "Image size: " << images[0].size() << endl << endl;
+    meanface = Mat(IMGAREA, 1, IMGTYPE);
     cout << "Loading image vectors\n\n"; 
 
     for (int i = 0; i < images.size(); i++)
     {
         //Reduce image matrices to vectors (N^2 x 1)
-        image = images[i];
-        image = image.reshape(0, images[i].rows*images[i].cols);
-        eigenvectors.push_back(image);
+        images[i]= images[i].reshape(0, IMGAREA);
         //Add faces to meanface
-        meanface += eigenvectors[i];
+        meanface += images[i]; 
     }
 
     cout << "Calculating mean face\n\n"; 
-    meanface = meanface / eigenvectors.size();
+    meanface = meanface / images.size();
     /*
-     * DISPLAY MEANFACE
-    meanface = meanface.reshape(0, images[0].rows);
+     * DISPLAY MEANFACE */
+    meanface = meanface.reshape(0, HEIGHT);
     imshow("Meanface", meanface);
-    meanface = meanface.reshape(0, images[0].rows*images[0].cols);
+    meanface = meanface.reshape(0, IMGAREA);
     waitKey(0);
-    */
+    //*/
 
     cout << "Subtracting mean face from images\n\n"; 
-    Mat A(eigenvectors[0].size(), eigenvectors[0].type());
+    Mat A(meanface.size(), IMGTYPE);
 
     //Features = image vectors - mean face
     //A = [all features] (each image is a col)
-    for (int i = 0; i < eigenvectors.size(); i++)
+    for (int i = 0; i < images.size(); i++)
     {
-        eigenvectors[i] -= meanface;
-        hconcat(A, eigenvectors[i], A);
+        images[i] -= meanface;
+        hconcat(A, images[i], A);
         /*
          * DISPLAY FEATURES-MEANFACE
         eigenvectors[i] = eigenvectors[i].reshape(0, images[i].rows); //original size
@@ -214,6 +219,8 @@ void Eigenfaces::train(vector<Mat>& images)
         eigenvectors[i] = eigenvectors[i].reshape(0, images[i].rows*images[i].cols);
         */
     }
+    A = A.colRange(1, A.cols);
+    cout << "A: " << A.rows << " " << A.cols << endl << endl; //debug
 
     cout << "Calculating covariance matrix\n\n"; 
     
@@ -226,20 +233,42 @@ void Eigenfaces::train(vector<Mat>& images)
     eigen(C, eval, v);
     
     cout << "Calculating M largest eigenvectors u\n\n";
+    Mat x, y, MM = Mat(meanface.size(), IMGTYPE);
     eigenvectors.clear();
     for (int i = 0; i < v.cols; i++)
     {
         //Divide every element by unit to get normalize to unit vector
-        image = A*v.col(i);
-        eigenvectors.push_back(image);
+        v.col(i) = A*v.col(i);
+        eigenvectors.push_back(v.col(i));
         /*
          * DISPLAY EIGENVECTORS
         eigenvectors[i] = eigenvectors[i].reshape(0, images[0].rows); //original size
         imshow("Eigenface", eigenvectors[i]); //display image
         waitKey(0);
         */
+        hconcat(MM, meanface, MM);
     }
-    cout << eigenvectors[0].at<double>(0,0) << endl;
+    MM = MM.colRange(1, MM.cols);
+
+    cout << "Calculating eigenfaces\n\n";
+    y = v * A.t();
+    cout << "y " << y.rows << " " << y.cols << endl << endl;
+
+    cout << "Reconstructing faces\n\n";
+    x = (v.t() * y).t() + MM;
+    cout << "x " << x.rows << " " << x.cols << endl << endl;
+
+    Mat image(IMGSIZE, IMGTYPE);
+    //Display reconstructed face
+    for (int i = 0; i < x.cols; i++)
+    {
+        image = Mat(x.rows, 1, x.type());
+        x.col(i).copyTo(image); 
+        image = image.reshape(0, HEIGHT);
+        imshow("Reconstructed face", image);
+        waitKey(0);
+        image = image.reshape(0, 10304);
+    }
 }
 
 void Eigenfaces::nukem()
